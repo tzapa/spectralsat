@@ -65,7 +65,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifacts
-          Get-ChildItem -Recurse -Filter "*.vst3" build | Copy-Item -Destination artifacts -Recurse
+          Get-ChildItem -Recurse -Directory -Filter "*.vst3" build | Copy-Item -Destination artifacts -Recurse -Force
 
       - uses: actions/upload-artifact@v4
         with:

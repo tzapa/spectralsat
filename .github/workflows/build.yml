@@ -1,0 +1,73 @@
+name: Build SpectralSat
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PLUGIN_NAME: SpectralSat
+  BUILD_TYPE: Release
+
+jobs:
+  # ─────────────────────────────── macOS ──────────────────────────────────────
+  build-mac:
+    name: macOS (VST3 + AU)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Ad-hoc codesign
+        run: |
+          find build -name "*.vst3" -exec codesign --force --deep --sign - {} \;
+          find build -name "*.component" -exec codesign --force --deep --sign - {} \;
+
+      - name: Package
+        run: |
+          mkdir -p artifacts
+          find build -name "*.vst3"      -exec cp -R {} artifacts/ \;
+          find build -name "*.component" -exec cp -R {} artifacts/ \;
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_NAME }}-mac
+          path: artifacts/
+
+  # ─────────────────────────────── Windows ────────────────────────────────────
+  build-windows:
+    name: Windows (VST3)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts
+          Get-ChildItem -Recurse -Filter "*.vst3" build | Copy-Item -Destination artifacts -Recurse
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_NAME }}-windows
+          path: artifacts/
